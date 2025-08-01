@@ -14,7 +14,6 @@ import seaborn as sns
 
 
 
-# def identify_heatwaves():
 def identify_heatwaves(df, threshold_temp=25, window=3):
     df = df.copy()
     
