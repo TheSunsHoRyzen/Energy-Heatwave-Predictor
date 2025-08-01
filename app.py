@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from model.py import predict
+from model.py import identify_heatwaves
 
 # === Page Config ===
 st.set_page_config(page_title="Electricity Consumption Predictor for London", layout="centered")
@@ -27,6 +28,10 @@ def predict_consumption(df):
     df['predicted_kWh'] = (df['temperature'] * 15 + 250).round(2)
 
     return df
+
+# === Heatwave Identification ===
+df = identify_heatwaves(df, threshold_temp=25, window=3)
+st.dataframe(df[["date","TX","is_heatwave","heatwave_group"]])
 
 # === Process and Display ===
 if uploaded_file:
