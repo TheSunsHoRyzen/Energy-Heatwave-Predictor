@@ -15,7 +15,21 @@ import seaborn as sns
 
 
 # def identify_heatwaves():
+def identify_heatwaves(df, threshold_temp=25, window=3):
+    df = df.copy()
+    
+    is_hot = df['TX'] > threshold_temp.astype(int)
+    
+    streak_counts = np.convolve(is_hot, np.ones(window, dtype=int), mode='same')
+    
+    df["is_heatwave"] = streak_counts >= window
+    
+    starts = df["is_heatwave"] & ~df["is_heatwave"].shift(fill_value=False)
+    df["heatwave_group"] = starts.cumsum() * df["is_heatwave"]
 
+    return df
+    
+    
 
 
 df = pd.read_csv("london_weather_data_1979_to_2023.csv")
