@@ -75,10 +75,15 @@ X_train_pca, X_test_pca, y_train, y_test = train_test_split(X_pca, y, test_size=
 # print("R²:", r2_score(y_test, y_pred_linear_pca))
 
 # Random Forest w/ PCA features
-rf_pca = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_pca = RandomForestRegressor(max_depth =10,min_samples_leaf=2,min_samples_split=5,n_estimators=200, random_state=42)
 rf_pca.fit(X_train_pca, y_train)
 y_pred_rf_pca = rf_pca.predict(X_test_pca)
 
 print("Random Forest Regression with PCA features")
 print("MSE:", mean_squared_error(y_test, y_pred_rf_pca))
 print("R²:", r2_score(y_test, y_pred_rf_pca))
+
+
+def predict(temp: pd.DataFrame):
+    results = rf_pca.predict(temp)
+    return results

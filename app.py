@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from model.py import predict
+from model import predict
 
 # === Page Config ===
 st.set_page_config(page_title="Electricity Consumption Predictor for London", layout="centered")
@@ -24,7 +24,7 @@ uploaded_file = st.file_uploader("Upload CSV with 'date' and 'temperature' colum
 def predict_consumption(df):
     # Replace with your actual model logic
     # Example: electricity = a * temperature + b
-    df['predicted_kWh'] = (df['temperature'] * 15 + 250).round(2)
+    df['predicted_kWh'] = predict(df['temperature'])
 
     return df
 
@@ -45,11 +45,13 @@ if uploaded_file:
             # === Display Result Table ===
             st.markdown("### 🔍 Predicted Electricity Consumption (in kWh)")
             styled_table = result_df.style.format({
+                'date': lambda d: d.strftime('%Y-%m-%d'),
                 'temperature': '{:.1f} °C',
                 'predicted_kWh': '{:.2f} kWh'
             }).set_table_styles(
                 [{'selector': 'th', 'props': [('background-color', '#003366'), ('color', 'white'), ('font-size', '14px')]}]
             ).highlight_max(color='lightgreen')
+
 
             st.dataframe(styled_table, use_container_width=True)
 
