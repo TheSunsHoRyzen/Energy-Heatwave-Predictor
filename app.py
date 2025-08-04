@@ -20,7 +20,7 @@ st.markdown("""
 uploaded_file = st.file_uploader(
     "Upload CSV with 'date' and 'temperature' columns",
     type=['csv'],
-    help="File should contain 'date' and 'temperature' columns"
+    help="File should contain 'date' (MM/DD/YYYY) and 'temperature' columns"
 )
 
 # === Load & Cache Model Once ===
@@ -32,7 +32,6 @@ artifacts = get_model_artifacts()
 
 # === Prediction Helper ===
 def predict_consumption(df: pd.DataFrame) -> pd.DataFrame:
-    # df has a 'temperature' column
     df = df.copy()
     df['predicted_kWh'] = predict(df[['temperature']], artifacts)
     return df
@@ -44,34 +43,45 @@ if uploaded_file:
         
         # Validate required columns
         if 'date' not in df.columns or 'temperature' not in df.columns:
-            st.error("CSV must contain 'date' and 'temperature' columns.")
+            st.error("CSV must contain 'date' (MM/DD/YYYY) and 'temperature' columns.")
         else:
-            df['date'] = pd.to_datetime(df['date'], errors='coerce')
-            df.dropna(subset=['date', 'temperature'], inplace=True)
-            
-            result_df = predict_consumption(df[['date', 'temperature']])
-            
-            # === Display Result Table ===
-            st.markdown("### 🔍 Predicted Electricity Consumption (in kWh)")
-            
-            styled_table = result_df.style.format({
-                'date': lambda d: d.strftime('%Y-%m-%d'),
-                'temperature': '{:.1f} °C',
-                'predicted_kWh': '{:.2f} kWh'
-            }).set_table_styles([
-                {'selector': 'th', 'props': [
-                    ('background-color', '#003366'),
-                    ('color', 'white'),
-                    ('font-size', '14px')
-                ]}
-            ]).highlight_max(color='lightgreen')
-            
-            st.dataframe(styled_table, use_container_width=True)
-            
+            # parse dates as MM/DD/YYYY
+            df['date'] = pd.to_datetime(
+                df['date'],dayfirst=False,yearfirst=False,errors='coerce')
+            # drop rows missing date or temperature
+            df = df.dropna(subset=['date', 'temperature'])
+
+            if df.empty:
+                st.error(
+                    "No valid rows to predict. "
+                    "Please check that your 'date' column is formatted as MM/DD/YYYY "
+                    "and that there are no missing values."
+                )
+            else:
+                input_df  = df[['date', 'temperature']]
+                result_df = predict_consumption(input_df)
+
+                # === Display Result Table ===
+                st.markdown("### 🔍 Predicted Electricity Consumption (in kWh)")
+                styled_table = result_df.style.format({
+                    'date': lambda d: d.strftime('%m/%d/%Y'),
+                    'temperature': '{:.1f} °C',
+                    'predicted_kWh': '{:.2f} kWh'
+                }).set_table_styles([
+                    {'selector': 'th', 'props': [
+                        ('background-color', '#003366'),
+                        ('color', 'white'),
+                        ('font-size', '14px')
+                    ]}
+                ]).highlight_max(color='lightgreen')
+
+                st.dataframe(styled_table, use_container_width=True)
+
     except Exception as e:
         st.error(f"Something went wrong while processing the file: {e}")
 else:
     st.markdown(
-        "<p style='text-align: center; font-size: 1.1em; color: gray;'>Awaiting your data upload...</p>",
+        "<p style='text-align: center; font-size: 1.1em; color: gray;'>"
+        "Awaiting your data upload...</p>",
         unsafe_allow_html=True
     )

@@ -34,10 +34,12 @@ merged_df[columns_to_fill] = merged_df[columns_to_fill].ffill()
 
 print(merged_df.info())
 # Step 4: Display merged result
-# print(merged_df.shape)
-# print(merged_df.info())
+print(merged_df.shape)
+print(merged_df.info())
 
 # Updated list of valid features for plotting
+merged_df[['TX','TN','TG']] = merged_df[['TX','TN','TG']] / 10
+
 valid_features_to_plot = ['TX', 'TN', 'TG', 'RR', 'SS', 'QQ', 'PP', 'HU', 'CC']
 
 # Create subplots
