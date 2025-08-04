@@ -1,8 +1,7 @@
+# app.py
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-from model import predict
-from model import identify_heatwaves
+from model import load_model, predict, identify_heatwaves
 
 # === Page Config ===
 st.set_page_config(page_title="Electricity Consumption Predictor for London", layout="centered")
@@ -18,20 +17,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # === File Upload ===
-uploaded_file = st.file_uploader("Upload CSV with 'date' and 'temperature' columns", type=['csv'],
-                                 help="File should contain 'date' and 'temperature' columns")
+uploaded_file = st.file_uploader(
+    "Upload CSV with 'date' and 'temperature' columns",
+    type=['csv'],
+    help="File should contain 'date' and 'temperature' columns"
+)
 
-# === Dummy Model Function ===
-def predict_consumption(df):
-    # Replace with your actual model logic
-    # Example: electricity = a * temperature + b
-    df['predicted_kWh'] = predict(df['temperature'])
+# === Load & Cache Model Once ===
+@st.cache_resource
+def get_model_artifacts():
+    return load_model()
 
+artifacts = get_model_artifacts()
+
+# === Prediction Helper ===
+def predict_consumption(df: pd.DataFrame) -> pd.DataFrame:
+    # df has a 'temperature' column
+    df = df.copy()
+    df['predicted_kWh'] = predict(df[['temperature']], artifacts)
     return df
-
-# === Heatwave Identification ===
-df = identify_heatwaves(df, threshold_temp=25, window=3)
-st.dataframe(df[["date","TX","is_heatwave","heatwave_group"]])
 
 # === Process and Display ===
 if uploaded_file:
@@ -54,13 +58,20 @@ if uploaded_file:
                 'temperature': '{:.1f} °C',
                 'predicted_kWh': '{:.2f} kWh'
             }).set_table_styles(
-                [{'selector': 'th', 'props': [('background-color', '#003366'), ('color', 'white'), ('font-size', '14px')]}]
+                [{'selector': 'th', 'props': [
+                    ('background-color', '#003366'),
+                    ('color', 'white'),
+                    ('font-size', '14px')
+                ]}]
             ).highlight_max(color='lightgreen')
-
 
             st.dataframe(styled_table, use_container_width=True)
 
     except Exception as e:
         st.error(f"Something went wrong while processing the file: {e}")
+
 else:
-    st.markdown("<p style='text-align: center; font-size: 1.1em; color: gray;'>Awaiting your data upload...</p>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='text-align: center; font-size: 1.1em; color: gray;'>Awaiting your data upload...</p>",
+        unsafe_allow_html=True
+    )
