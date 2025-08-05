@@ -40,22 +40,37 @@ def predict_consumption(df: pd.DataFrame) -> pd.DataFrame:
 if uploaded_file:
     try:
         df = pd.read_csv(uploaded_file)
-        
-        # Validate required columns
-        if 'date' not in df.columns or 'temperature' not in df.columns:
-            st.error("CSV must contain 'date' (MM/DD/YYYY) and 'temperature' columns.")
-        else:
-            # parse dates as MM/DD/YYYY
-            df['date'] = pd.to_datetime(
-                df['date'],dayfirst=False,yearfirst=False,errors='coerce')
-            # drop rows missing date or temperature
-            df = df.dropna(subset=['date', 'temperature'])
+        df.columns = df.columns.str.strip().str.lower()
 
+        if 'temperature' in df.columns:
+            temp_col = 'temperature'
+        elif 'tx' in df.columns:
+            temp_col = 'tx'
+            df.rename(columns={'tx': 'temperature'}, inplace=True)
+        else:
+            temp_col = None
+
+        # check for 'date' column and parse format
+        if 'date' in df.columns:
+            # parse YYYYMMDD or MM/DD/YYYY
+            if df['date'].astype(str).str.match(r'^\d{8}$').all():
+                df['date'] = pd.to_datetime(df['date'], format='%Y%m%d', errors='coerce')
+            else:
+                # fallback: try MM/DD/YYYY
+                df['date'] = pd.to_datetime(df['date'], format='%m/%d/%Y', errors='coerce')
+        else:
+            st.error("CSV must contain a 'date' column.")
+            temp_col = None
+
+        # validate columns
+        if temp_col is None or 'date' not in df.columns:
+            st.error("CSV must contain 'date' (YYYYMMDD or MM/DD/YYYY) and 'temperature' or 'tx' columns.")
+        else:
+            df = df.dropna(subset=['date', 'temperature'])
             if df.empty:
                 st.error(
                     "No valid rows to predict. "
-                    "Please check that your 'date' column is formatted as MM/DD/YYYY "
-                    "and that there are no missing values."
+                    "Please check your 'date' and 'temperature' columns for correct format and missing values."
                 )
             else:
                 input_df  = df[['date', 'temperature']]
