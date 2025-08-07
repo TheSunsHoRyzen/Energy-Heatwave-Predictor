@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from model import load_model, predict, identify_heatwaves
 
 # === Page Config ===
@@ -8,19 +9,29 @@ st.set_page_config(page_title="Electricity Consumption Predictor for London", la
 
 # === Title ===
 st.markdown("""
-    <h1 style='text-align: center; color: #004080; font-size: 3em;'>
-        ⚡ Electricity Consumption Predictor for London
-    </h1>
-    <p style='text-align: center; color: #666; font-size: 1.2em;'>
-        Upload your temperature data to forecast daily electricity usage (in kWh)
-    </p>
+    <div style="
+        background: linear-gradient(90deg, #004080 0%, #0099cc 100%);
+        padding: 2rem 1rem 1.2rem 1rem;
+        border-radius: 18px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+        margin-bottom: 2rem;
+        text-align: center;
+    ">
+        <h1 style='color: #fff; font-size: 2.7em; font-family:Segoe UI,Arial,sans-serif; margin-bottom: 0.2em; letter-spacing: 1px;'>
+             Electricity Consumption Predictor for London
+        </h1>
+        <p style='color: #e0e0e0; font-size: 1.25em; margin-top: 0;'>
+            <em>Upload your temperature data to forecast daily electricity usage (in kWh)<em>
+        </p>
+    </div>
 """, unsafe_allow_html=True)
 
 # === File Upload ===
 uploaded_file = st.file_uploader(
-    "Upload CSV with 'date' and 'temperature' columns",
+    "Choose a CSV file",
     type=['csv'],
-    help="File should contain 'date' (MM/DD/YYYY) and 'temperature' columns"
+    label_visibility="collapsed",  
+    help="File should contain 'date' (MM/DD/YYYY) and temperature columns"
 )
 
 # === Load & Cache Model Once ===
@@ -42,6 +53,7 @@ if uploaded_file:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = df.columns.str.strip().str.lower()
+        
 
         required_cols = {
             'date': 'date',
@@ -100,21 +112,25 @@ if uploaded_file:
                 group = row['heatwave_group']
                 if group == 0:
                     return [''] * len(row)
-                color = f'hsla({(group * 37) % 360}, 70%, 85%, 1)'
-                return [f'background-color: {color}'] * len(row)
+                return [f'background-color: #610000; color: white'] * len(row)
 
             styled_table = df.style\
                 .format({
                     'date': lambda d: d.strftime('%m/%d/%Y'),
-                    'temperature': '{:.1f} °C',
-                    'predicted_kWh': '{:.2f} kWh',
+                    'TX': '{:.1f}',           # Max temperature
+                    'TN': '{:.1f}',           # Min temperature
+                    'TG': '{:.1f}',           # Avg temperature
+                    'HU': '{:.0f}',           # Humidity as integer
+                    'SS': '{:.1f}',           # Sunshine duration
+                    'predicted_kWh': '{:.2f}',# Predicted kWh
+                
                 })\
                 .apply(highlight_heatwaves, axis=1)\
                 .set_table_styles([{
                     'selector': 'th',
                     'props': [('background-color', '#003366'), ('color', 'white'), ('font-size', '14px')]
                 }])
-
+                
             st.dataframe(styled_table, use_container_width=True)
 
             # === Heatwave Summary ===
@@ -130,24 +146,81 @@ if uploaded_file:
                     duration = (sub_df['date'].max() - sub_df['date'].min()).days + 1
                     mean_temp = sub_df['TX'].mean()
                     median_temp = sub_df['TX'].median()
+                    min_temp = sub_df['TX'].min()
+                    max_temp = sub_df['TX'].max()
+                    total_pred_kwh = sub_df['predicted_kWh'].sum()
+                    mean_pred_kwh = sub_df['predicted_kWh'].mean()
+                    median_pred_kwh = sub_df['predicted_kWh'].median()
+                    start_weekday = sub_df['date'].min().strftime('%A')
+                    end_weekday = sub_df['date'].max().strftime('%A')
+                    dates_str = ', '.join(sub_df['date'].dt.strftime('%m/%d/%Y'))
 
                     summary_rows.append({
                         "Heatwave ID": group_id,
                         "Start Date": start_date,
                         "End Date": end_date,
+                        "Start Weekday": start_weekday,
+                        "End Weekday": end_weekday,
                         "Duration (days)": duration,
+                        "Min Temp (°C)": round(min_temp, 2),
                         "Mean Temp (°C)": round(mean_temp, 2),
-                        "Median Temp (°C)": round(median_temp, 2)
+                        "Median Temp (°C)": round(median_temp, 2),
+                        "Max Temp (°C)": round(max_temp, 2),
+                        "Total Pred. kWh": round(total_pred_kwh, 2),
+                        "Mean Pred. kWh": round(mean_pred_kwh, 2),
+                        "Median Pred. kWh": round(median_pred_kwh, 2),
+                        "Dates": dates_str,  
                     })
 
-                st.dataframe(pd.DataFrame(summary_rows))
+                summary_df = pd.DataFrame(summary_rows)
+                st.dataframe(summary_df)
+
+                # === Heatwave Statistics ===
+                avg_duration = summary_df["Duration (days)"].mean()
+                max_duration = summary_df["Duration (days)"].max()
+                min_duration = summary_df["Duration (days)"].min()
+                highest_temp = summary_df["Max Temp (°C)"].max()
+                total_heatwave_days = summary_df["Duration (days)"].sum()
+                total_heatwaves = len(summary_df)
+                total_pred_kwh = summary_df["Total Pred. kWh"].sum()
+
+                # === Display Metrics ===
+                st.markdown("### 📊 Heatwave Metrics")
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Heatwave Events", total_heatwaves)
+                col2.metric("Total Heatwave Days", int(total_heatwave_days))
+                col3.metric("Max Temp (°C)", f"{highest_temp:.1f}")
+                col4.metric("Total kWh (Heatwaves)", f"{total_pred_kwh:.2f}")
+
+                st.markdown("### Heatwave Statistics")
+                st.markdown(f"""
+                - **Total heatwave events:** {total_heatwaves}
+                - **Total heatwave days:** {int(total_heatwave_days)}
+                - **Average heatwave duration:** {avg_duration:.1f} days
+                - **Longest heatwave:** {int(max_duration)} days
+                - **Shortest heatwave:** {int(min_duration)} days
+                - **Highest temperature during heatwaves:** {highest_temp:.1f}°C
+                - **Total predicted consumption during heatwaves:** {total_pred_kwh:.2f} kWh
+                """)
+                
+                # === Plots ===
+                st.markdown("### 📈 Visualizations")   
+                fig = px.bar(
+                summary_df,
+                x='Heatwave ID',
+                y='Total Pred. kWh',
+                color='Heatwave ID',  
+                hover_data=['Duration (days)', 'Max Temp (°C)'],
+                title="Total Predicted Consumption per Heatwave Event")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # === Download Summary ===
+                st.markdown("### 📥 Download Heatwave Summary")
+                st.download_button("Download Table as CSV", summary_df.to_csv(index=False), "heatwave_summary.csv")
+
 
     except Exception as e:
         st.error(f"Something went wrong while processing the file: {e}")
 
-else:
-    st.markdown(
-        "<p style='text-align: center; font-size: 1.1em; color: gray;'>"
-        "Awaiting your data upload...</p>",
-        unsafe_allow_html=True
-    )
+
+
