@@ -16,6 +16,9 @@ def load_model():
     # parse dates (specify format so no warning):
     weather['date'] = pd.to_datetime(weather['DATE'], format="%Y%m%d", errors="coerce")
     energy_dates   = pd.to_datetime(energy['Date'], format="%Y-%m-%d", errors="coerce")
+    numerical_cols = weather.select_dtypes(include=['float64', 'int64']).columns
+    for col in numerical_cols:
+        weather[col] = weather[col].fillna(weather[col].median())
 
     avg_kwh = (energy
               .assign(Date=energy_dates)
@@ -27,13 +30,23 @@ def load_model():
     df = weather.drop(columns=['DATE']).merge(avg_kwh, on='date', how='inner')
 
     # fill missing HU/CC
-    df[['HU','CC']] = df[['HU','CC']].ffill()
+    # df[['HU','CC']] = df[['HU','CC']].ffill()
+
 
     # convert temps from tenths of °C
     df[['TX','TN','TG']] = df[['TX','TN','TG']] / 10
 
+    heatwave_threshold = df['TX'].quantile(0.95)
+    df['Heatwave'] = (df['TX'] > heatwave_threshold).astype(int)
+    df['Year'] = df['date'].dt.year
+    df['Month'] = df['date'].dt.month
+    df['Day'] = df['date'].dt.day
+    df['Weekday'] = df['date'].dt.weekday
     # train on just the one TX feature
-    X = df[['TX']]
+    features = ['TX', 'TN', 'TG', 'HU', 'SS', 'Heatwave', 'Year', 'Month', 'Day','Weekday']
+            # Check for any object or string columns — there should be none
+
+    X = df[features]
     y = df['consumption']
 
     # scaler = StandardScaler().fit(X)
@@ -42,19 +55,17 @@ def load_model():
     X_tr, X_te, y_tr, y_te = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
-    # rf = RandomForestRegressor(
-    #     max_depth=10,
-    #     min_samples_leaf=2,
-    #     min_samples_split=5,
-    #     n_estimators=200,
-    #     random_state=42
-    # )
-    # rf.fit(X_tr, y_tr)
-    model = LinearRegression()
-    model.fit(X_tr,y_tr)
+    rf = RandomForestRegressor(
+        n_estimators=100,
+        random_state=42
+    )
+    rf.fit(X_tr, y_tr)
+    # model = LinearRegression()
+    # model.fit(X_tr,y_tr)
     # return {"model": rf, "scaler": scaler}
-    # return {"model": rf}
-    return {"model": model}
+    return {"model": rf, "features": features}
+
+    # return {"model": model}
 
 
 def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
@@ -62,8 +73,7 @@ def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
     feature_df: DataFrame with a 'temperature' column
     artefacts:   dict returned by load_model()
     """
-    # work on a copy, rename 1→TX without warning
-    df_local = feature_df.rename(columns={'temperature':'TX'})[['TX']]
+    # work on a copy, rename 1→TX without warning]
 
     # heatwave_predictions = identify_heatwaves(df_local)
 
@@ -71,24 +81,30 @@ def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
     # Xs = artefacts['scaler'].transform(df_local)
 
     # predict
-    predictions = artefacts['model'].predict(df_local)
+    # predictions = artefacts['model'].predict(feature_df)
+    
 
 
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=df_local['TX'], y=predictions, color='r')
-    plt.title('Linear Regression Predictions vs. TX')
-    plt.xlabel('TX (degrees C)')
-    plt.ylabel('Predicted Consumption (KWH)')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("predictions_vs_temperature.png")  # Optional: save to file
+    features = artefacts['features']
+    X = feature_df[features]
+    return artefacts['model'].predict(feature_df)
+
+
+    # plt.figure(figsize=(10, 6))
+    # sns.scatterplot(x=df_local['TX'], y=predictions, color='r')
+    # plt.title('Linear Regression Predictions vs. TX')
+    # plt.xlabel('TX (degrees C)')
+    # plt.ylabel('Predicted Consumption (KWH)')
+    # plt.grid(True)
+    # plt.tight_layout()
+    # plt.savefig("predictions_vs_temperature.png")  # Optional: save to file
     return predictions
 
 def identify_heatwaves(
     df: pd.DataFrame,
     threshold_temp: float = 25,
     window: int = 3,
-    temp_col: str = "temperature"
+    temp_col: str = "TX"
 ) -> pd.DataFrame:
     df = df.copy()
 
