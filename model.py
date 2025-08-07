@@ -23,7 +23,7 @@ def load_model():
     avg_kwh = (energy
               .assign(Date=energy_dates)
               .groupby('Date')['KWH']
-              .mean()
+              .sum()
               .reset_index(name='consumption')
               .rename(columns={'Date':'date'}))
 

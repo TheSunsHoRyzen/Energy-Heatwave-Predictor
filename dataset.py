@@ -9,16 +9,16 @@ df2 = pd.read_csv("london_energy.csv")
 
 # print(df.info())
 
-avg_kwh = df2.groupby('Date')['KWH'].mean()
-avg_kwh = pd.DataFrame({'date':avg_kwh.index.tolist(), 'consumption':avg_kwh.values.tolist()})
-avg_kwh['date'] = pd.to_datetime(avg_kwh['date'])
+sum_kwh = df2.groupby('Date')['KWH'].sum()
+avg_kwh = pd.DataFrame({'date':sum_kwh.index.tolist(), 'consumption':sum_kwh.values.tolist()})
+sum_kwh['date'] = pd.to_datetime(sum_kwh['date'])
 # print(avg_kwh.head())
 # Step 2: Convert the weather data 'DATE' column to datetime
 # Keep DATE column as datetime (do not convert to string)
 df['date'] = pd.to_datetime(df['DATE'], format='%Y%m%d')
 
 # Merge on 'date' column only
-merged_df = pd.merge(avg_kwh, df.drop(columns=['DATE']), on='date', how='inner')
+merged_df = pd.merge(sum_kwh, df.drop(columns=['DATE']), on='date', how='inner')
 
 
 # Output the shape of the merged result for quick verification
