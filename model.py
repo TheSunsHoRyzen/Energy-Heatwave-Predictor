@@ -65,11 +65,14 @@ def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
     # work on a copy, rename 1→TX without warning
     df_local = feature_df.rename(columns={'temperature':'TX'})[['TX']]
 
+    # heatwave_predictions = identify_heatwaves(df_local)
+
     # scale exactly like training
     # Xs = artefacts['scaler'].transform(df_local)
 
     # predict
     predictions = artefacts['model'].predict(df_local)
+
 
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=df_local['TX'], y=predictions, color='r')
@@ -84,12 +87,35 @@ def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
 def identify_heatwaves(
     df: pd.DataFrame,
     threshold_temp: float = 25,
-    window: int = 3
+    window: int = 3,
+    temp_col: str = "temperature"
 ) -> pd.DataFrame:
     df = df.copy()
-    is_hot = df['temperature'] > threshold_temp
-    streak = np.convolve(is_hot, np.ones(window, dtype=int), mode='same')
-    df["is_heatwave"]    = streak >= window
-    starts = df["is_heatwave"] & ~df["is_heatwave"].shift(fill_value=False)
-    df["heatwave_group"] = starts.cumsum() * df["is_heatwave"]
+
+    # Identify hot days
+    df["is_hot"] = df[temp_col] > threshold_temp
+
+    # Create group numbers for consecutive days (hot or not)
+    group = (df["is_hot"] != df["is_hot"].shift()).cumsum()
+
+    # Assign group ids only to hot streaks
+    df["group"] = group.where(df["is_hot"])
+
+    # Filter out groups shorter than the required window
+    heatwave_counts = df.groupby("group").size()
+    valid_groups = heatwave_counts[heatwave_counts >= window].index
+
+    # Assign heatwave_group id (incremental starting from 1)
+    df["heatwave_group"] = 0
+    heatwave_id = 1
+    for g in valid_groups:
+        df.loc[df["group"] == g, "heatwave_group"] = heatwave_id
+        heatwave_id += 1
+
+    # Flag is_heatwave based on group assignment
+    df["is_heatwave"] = df["heatwave_group"] > 0
+
+    # Clean up
+    df.drop(columns=["group", "is_hot"], inplace=True)
     return df
+
