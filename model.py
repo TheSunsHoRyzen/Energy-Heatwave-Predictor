@@ -4,6 +4,9 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def load_model():
     # --- Load & merge your weather + energy data as before ---
@@ -33,22 +36,25 @@ def load_model():
     X = df[['TX']]
     y = df['consumption']
 
-    scaler = StandardScaler().fit(X)
-    X_scaled = scaler.transform(X)
+    # scaler = StandardScaler().fit(X)
+    # X_scaled = scaler.transform(X)
 
     X_tr, X_te, y_tr, y_te = train_test_split(
-        X_scaled, y, test_size=0.2, random_state=42
+        X, y, test_size=0.2, random_state=42
     )
-    rf = RandomForestRegressor(
-        max_depth=10,
-        min_samples_leaf=2,
-        min_samples_split=5,
-        n_estimators=200,
-        random_state=42
-    )
-    rf.fit(X_tr, y_tr)
-
-    return {"model": rf, "scaler": scaler}
+    # rf = RandomForestRegressor(
+    #     max_depth=10,
+    #     min_samples_leaf=2,
+    #     min_samples_split=5,
+    #     n_estimators=200,
+    #     random_state=42
+    # )
+    # rf.fit(X_tr, y_tr)
+    model = LinearRegression()
+    model.fit(X_tr,y_tr)
+    # return {"model": rf, "scaler": scaler}
+    # return {"model": rf}
+    return {"model": model}
 
 
 def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
@@ -60,11 +66,20 @@ def predict(feature_df: pd.DataFrame, artefacts: dict) -> np.ndarray:
     df_local = feature_df.rename(columns={'temperature':'TX'})[['TX']]
 
     # scale exactly like training
-    Xs = artefacts['scaler'].transform(df_local)
+    # Xs = artefacts['scaler'].transform(df_local)
 
     # predict
-    return artefacts['model'].predict(Xs)
+    predictions = artefacts['model'].predict(df_local)
 
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=df_local['TX'], y=predictions, color='r')
+    plt.title('Linear Regression Predictions vs. TX')
+    plt.xlabel('TX (degrees C)')
+    plt.ylabel('Predicted Consumption (KWH)')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("predictions_vs_temperature.png")  # Optional: save to file
+    return predictions
 
 def identify_heatwaves(
     df: pd.DataFrame,
