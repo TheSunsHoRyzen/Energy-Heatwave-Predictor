@@ -10,7 +10,7 @@ st.set_page_config(page_title="Electricity Consumption Predictor for London", la
 # === Title ===
 st.markdown("""
     <div style="
-        background: linear-gradient(90deg, #004080 0%, #0099cc 100%);
+        background: linear-gradient(360deg, #48288c 0%, #db7f4b 90%);
         padding: 2rem 1rem 1.2rem 1rem;
         border-radius: 18px;
         box-shadow: 0 4px 24px rgba(0,0,0,0.10);
@@ -112,7 +112,8 @@ if uploaded_file:
                 group = row['heatwave_group']
                 if group == 0:
                     return [''] * len(row)
-                return [f'background-color: #610000; color: white'] * len(row)
+                return [f'background-color: #db7f4b; color: white'] * len(row)
+            
 
             styled_table = df.style\
                 .format({
@@ -132,6 +133,7 @@ if uploaded_file:
                 }])
                 
             st.dataframe(styled_table, use_container_width=True)
+            
 
             # === Heatwave Summary ===
             heatwave_groups = df[df['heatwave_group'] > 0]['heatwave_group'].unique()
@@ -204,7 +206,8 @@ if uploaded_file:
                 """)
                 
                 # === Plots ===
-                st.markdown("### 📈 Visualizations")   
+                st.markdown("### 📈 Visualizations") 
+                  
                 fig = px.bar(
                 summary_df,
                 x='Heatwave ID',
@@ -214,9 +217,26 @@ if uploaded_file:
                 title="Total Predicted Consumption per Heatwave Event")
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # === Download Summary ===
-                st.markdown("### 📥 Download Heatwave Summary")
-                st.download_button("Download Table as CSV", summary_df.to_csv(index=False), "heatwave_summary.csv")
+                fig2 = px.line(
+                df, x='date', y='predicted_kWh', color='heatwave_group',
+                title="Predicted Electricity Consumption Over Time",
+                labels={'predicted_kWh': 'Predicted kWh', 'date': 'Date', 'heatwave_group': 'Heatwave'})
+                st.plotly_chart(fig2, use_container_width=True)
+                
+                fig3 = px.scatter(
+                df,
+                x="TG",  
+                y="predicted_kWh",
+                color="heatwave_group",  
+                labels={"TG": "Average Temp (°C)", "predicted_kWh": "Predicted kWh", "heatwave_group": "Heatwave"},
+                title="Average Temperature (TG) vs Predicted Electricity Consumption"
+            )
+            st.plotly_chart(fig3, use_container_width=True)
+
+            # === Download Summary ===
+            st.markdown("### 📥 Download Heatwave Summary")
+            st.download_button("Download Table as CSV", summary_df.to_csv(index=False), "heatwave_summary.csv")
+                
 
 
     except Exception as e:
