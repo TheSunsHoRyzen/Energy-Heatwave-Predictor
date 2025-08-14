@@ -8,6 +8,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.decomposition import PCA
 
 def load_model():
     # --- Load & merge your weather + energy data as before ---
@@ -51,9 +52,15 @@ def load_model():
     df['Month'] = df['date'].dt.month
     df['Day'] = df['date'].dt.day
     df['Weekday'] = df['date'].dt.weekday
-    # train on just the one TX feature
+
+    # PCA for dimensionality reduction
+    X = df[['TG', 'TN', 'TX']]
+    y = df['consumption']
+
+    
     features = ['TX', 'TN', 'TG', 'HU', 'SS', 'Heatwave', 'Year', 'Month', 'Day','Weekday']
             # Check for any object or string columns — there should be none
+
 
     X = df[features]
     y = df['consumption']
@@ -65,8 +72,10 @@ def load_model():
         X, y, test_size=0.2, random_state=42
     )
     rf = RandomForestRegressor(
-        n_estimators=100,
-        random_state=42
+        n_estimators=200,
+        random_state=42,
+        min_samples_leaf=2,
+        min_samples_split=2
     )
     rf.fit(X_tr, y_tr)
     # model = LinearRegression()
