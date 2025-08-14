@@ -22,8 +22,9 @@ st.markdown("""
              Electricity Consumption Predictor for London
         </h1>
         <p style='color: #e0e0e0; font-size: 1.25em; margin-top: 0;'>
-            <em>Upload your temperature, sunshine, and humidity data to forecast daily electricity usage (in kWh)<em>
+            <em>Upload date, average, min and max temperature, sunshine duration, and humidity data to forecast daily electricity usage (in kWh).<em>
         </p>
+        <p style = 'color:#e0e0e0'>This data is being predicted using consumption figures from a random sample of 761 houses in London. Data was provided by UK Power Networks.</p>
     </div>
 """, unsafe_allow_html=True)
 
