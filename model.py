@@ -5,36 +5,45 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 def load_model():
     # --- Load & merge your weather + energy data as before ---
     weather = pd.read_csv("london_weather_data_1979_to_2023.csv")
-    energy  = pd.read_csv("london_energy.csv")
+    energy  = pd.read_csv("households_fullpanel_minmax.csv")
 
     # parse dates (specify format so no warning):
-    weather['date'] = pd.to_datetime(weather['DATE'], format="%Y%m%d", errors="coerce")
-    energy_dates   = pd.to_datetime(energy['Date'], format="%Y-%m-%d", errors="coerce")
+    weather["date"] = pd.to_datetime(weather["DATE"].astype(str), format="%Y%m%d", errors="coerce")
+    weather = weather.drop(columns=["DATE"])
+    print(weather['date'])
     numerical_cols = weather.select_dtypes(include=['float64', 'int64']).columns
+    print(f"numerical columns {numerical_cols}")
     for col in numerical_cols:
         weather[col] = weather[col].fillna(weather[col].median())
 
     avg_kwh = (energy
-              .assign(Date=energy_dates)
-              .groupby('Date')['KWH']
+              .groupby('date')['energy_kwh']
               .sum()
-              .reset_index(name='consumption')
-              .rename(columns={'Date':'date'}))
+              .reset_index(name='consumption'))
 
-    df = weather.drop(columns=['DATE']).merge(avg_kwh, on='date', how='inner')
+    # This came from Dask, so 'date' is often dtype=object with Python datetime.date objects or strings
+    avg_kwh["date"] = pd.to_datetime(avg_kwh["date"], errors="coerce")
+    df = pd.merge(
+    avg_kwh,         # your aggregated kWh per day
+    weather,      # your weather data
+    on="date",       # match on the 'date' column
+    how="inner"      # keep only dates that exist in both
+)
 
+    print(df)
     # fill missing HU/CC
     # df[['HU','CC']] = df[['HU','CC']].ffill()
 
 
     # convert temps from tenths of °C
-    df[['TX','TN','TG']] = df[['TX','TN','TG']] / 10
+    df[['TX','TN','TG']] /= 10
 
     heatwave_threshold = df['TX'].quantile(0.95)
     df['Heatwave'] = (df['TX'] > heatwave_threshold).astype(int)
@@ -61,7 +70,8 @@ def load_model():
     )
     rf.fit(X_tr, y_tr)
     # model = LinearRegression()
-    # model.fit(X_tr,y_tr)
+    y_pred_tree = rf.predict(X_te)
+    print(f"r^2 score: {r2_score(y_te,y_pred_tree)}")
     # return {"model": rf, "scaler": scaler}
     return {"model": rf, "features": features}
 

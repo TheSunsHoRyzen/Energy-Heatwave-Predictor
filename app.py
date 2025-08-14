@@ -22,7 +22,7 @@ st.markdown("""
              Electricity Consumption Predictor for London
         </h1>
         <p style='color: #e0e0e0; font-size: 1.25em; margin-top: 0;'>
-            <em>Upload your temperature data to forecast daily electricity usage (in kWh)<em>
+            <em>Upload your temperature, sunshine, and humidity data to forecast daily electricity usage (in kWh)<em>
         </p>
     </div>
 """, unsafe_allow_html=True)
