@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/69925e8e-9361-42bd-b6ac-360feef6d276
 
 ##  Future Improvements  
 - Incorporate additional models such as Gradient Boosting and Neural Networks for comparison  
-- Extend data sources to include weather forecasts and seasonal effects  
+- Extend data sources to include a wider breadth of London temperature data
 - Allow for user adjustable heatwave temperature threshold
 
 ---
