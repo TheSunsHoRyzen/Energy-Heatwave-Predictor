@@ -29,7 +29,7 @@ The application is deployed using **Streamlit**, providing a simple and user-fri
 
 ---
 
-##  Demo (Optional)  
+##  Demo 
 
 
 https://github.com/user-attachments/assets/69925e8e-9361-42bd-b6ac-360feef6d276
